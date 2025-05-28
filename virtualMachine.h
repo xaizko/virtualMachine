@@ -21,4 +21,28 @@ typedef unsigned long long int int64;
 #define $c (char *)
 #define $i (int)
 
+typedef unsigned short int Reg;
+
+struct s_registers {
+    Reg ax;
+    Reg bx;
+    Reg cx;
+    Reg dx;
+    Reg sp; //Stack pointer
+    Reg ip; //instruction pointer
+}
+typedef struct s_registers Registers;
+
+struct s_cpu {
+    Registers r;
+};
+typedef struct s_cpu CPU;
+
+struct s_vm {
+    CPU c;
+    Stack *s;
+    Program *p;
+};
+typedef struct s_vm VM;
+
 int main(int,char**);
