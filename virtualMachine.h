@@ -38,9 +38,18 @@ struct s_cpu {
 };
 typedef struct s_cpu CPU;
 
+struct s_instruction {
+    Opcode o;
+    Args a[]; //argument
+};
+typedef struct s_instruction Instruction;
+
+typedef int8 Stack[-1];
+typedef Instruction Program;
+
 struct s_vm {
     CPU c;
-    Stack *s;
+    Stack s;
     Program *p;
 };
 typedef struct s_vm VM;
