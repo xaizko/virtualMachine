@@ -68,7 +68,7 @@ typedef int8 Memory[((unsigned int)(-1))];
 
 struct s_vm {
     CPU c;
-    Memory s;
+    Memory m;
     Program p;
 };
 typedef struct s_vm VM;
@@ -84,8 +84,8 @@ static IM instrmap[] = {
 
 //function declarations
 int8 map(Opcode o);
-Program exampleprogram(void);
-VM *virtualMachine(*Program,int16);
+Program *exampleprogram(VM*);
+VM *virtualMachine(void);
 
 int main(int,char**);
 
