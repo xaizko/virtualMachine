@@ -9,6 +9,9 @@
 #include <errno.h>
 #include <birchutils.h>
 
+#define ErrMem 0x01
+#define NoArgs {0x00, 0x00}
+
 typedef unsigned char int8;
 typedef unsigned short int int16;
 typedef unsigned int int32;
@@ -56,21 +59,32 @@ struct s_instruction {
     Opcode o;
     Args a[]; //argument 0-2 bytes
 };
-typedef struct s_instruction Instruction;
+typedef struct s_instruction *Instruction;
 
 typedef int8 Stack[((unsigned int)(-1))];
+
 typedef Instruction Program;
 
 struct s_vm {
     CPU c;
     Stack s;
-    Program *p;
+    Program p;
 };
 typedef struct s_vm VM;
 
+static Opcode opc;
 static IM instrmap[] = {
     { mov, 0x03 },
     { nop, 0x01 }
 };
+#define IMs (sizeof(instrmap) / sizeof(struct s_instrmap))
+
+//function declarations
+int8 map(Opcode o);
+Program exampleprogram(void);
+VM *virtualMachine(Program,int16);
 
 int main(int,char**);
+
+
+
