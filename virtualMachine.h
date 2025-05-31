@@ -59,18 +59,21 @@ struct s_instruction {
     Opcode o;
     Args a[]; //argument 0-2 bytes
 };
-typedef struct s_instruction *Instruction;
+typedef struct s_instruction Instruction;
 
-typedef int8 Stack[((unsigned int)(-1))];
+typedef int8 Program;
 
-typedef Instruction Program;
+typedef int8 Memory[((unsigned int)(-1))];
+
 
 struct s_vm {
     CPU c;
-    Stack s;
+    Memory s;
     Program p;
 };
 typedef struct s_vm VM;
+
+typedef Memory *Stack;
 
 static Opcode opc;
 static IM instrmap[] = {
@@ -82,7 +85,7 @@ static IM instrmap[] = {
 //function declarations
 int8 map(Opcode o);
 Program exampleprogram(void);
-VM *virtualMachine(Program,int16);
+VM *virtualMachine(*Program,int16);
 
 int main(int,char**);
 

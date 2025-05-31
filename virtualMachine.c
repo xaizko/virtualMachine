@@ -4,7 +4,7 @@
 int main(int argc, char *argv[]) {
     int8 size;
     VM *vm;
-    Program prog;
+    Program *prog;
 
     size = (map(mov) + map(nop));
     prog = exampleprogram();
@@ -17,9 +17,9 @@ int main(int argc, char *argv[]) {
 
 }
 
-VM *virtualMachine(Program pr, int16 progSize) {
+VM *virtualMachine(Program *pr, int16 progSize) {
     VM *p; 
-    Program pp; //program pointer
+    Program *pp; //program pointer
     int16 size;
 
     assert((pr) && (progSize));
@@ -31,38 +31,39 @@ VM *virtualMachine(Program pr, int16 progSize) {
     }
 
     zero($8 p, size);
-    pp = (Program)malloc($i progSize);
+    pp = (Program *)malloc($i progSize);
     if (!pp) {
 	free(p);
 	errno = ErrMem;
 	return (VM *)0;
     }
-    copy($8 pp, $8 pr, progSize);
+    copy(pp, pr, progSize);
 
     return p;
 }
 
-Program exampleprogram() {
-    Instruction i1, i2;
-    int16 size;
+Program *exampleprogram() {
+    Program *prog;
+    Instruction *i1, *i2;
+    Args *a1;
+    int16 s1, s2, sa1; //sizes
 
-    size = map(mov);
-    i1 = (Instruction)malloc($i size);
-    if (!i1) {
-	errno = ErrMem;
-	return (Program)0;
+    s1 = map(mov);
+    s2 = map(nop);
+
+    i1 = (Instruction *)malloc($i s1);
+    i2 = (Instruction *)malloc($i s2);
+    assert(i1 && i2);
+    zero($1 i1, s1);
+    zero($1 i2, s2);
+
+    i1->o = mov;
+    sa1 = (s1-1);
+    if (s1) {
+	a1 = (Args *)malloc($i sa1);
+	assert(a1);
+	zero(a1, sa1);
     }
-
-    size = map(nop);
-    i2 = (Instruction)malloc($i size);
-    if (!i2) {
-	errno = ErrMem;
-	return (Program)0;
-    }
-
-    Program prog = { i1, i2 };
-
-    return prog;
 }
 
 int8 map(Opcode o) {
