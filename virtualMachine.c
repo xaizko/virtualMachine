@@ -4,6 +4,7 @@
 int main(int argc, char *argv[]) {
     VM *vm;
     Program *prog;
+    int16 total_size;
 
     vm = virtualMachine();
     printf("vm = %p (size: %lu)\n", vm, sizeof(struct s_vm));
@@ -14,7 +15,13 @@ int main(int argc, char *argv[]) {
     execute(vm);
     printf("ax = %.04hx\n", $i vm->c.r.ax);
 
-    printhex($8 prog, (map(mov) + map(nop) + map(hlt)), ' ');
+    // Calculate the total size of all instructions
+    total_size = map(mov) + map(nop) + map(hlt);
+    // Add the size of the argument (2 bytes) for the mov instruction
+    total_size += sizeof(Args) - 1; // -1 because 1 byte is already counted in map(mov)
+    
+    printf("Printing %d bytes of opcodes: ", total_size);
+    printhex($8 prog, total_size, ' ');
 
     return 0;
 
@@ -22,15 +29,15 @@ int main(int argc, char *argv[]) {
 
 VM *virtualMachine() {
     VM *p; 
-    int16 size;
-
-    size = sizeof(struct s_vm);
-    p = (VM *)malloc($i size);
+    
+    // Allocate directly rather than using size variable to avoid int16 overflow
+    p = (VM *)malloc(sizeof(struct s_vm));
     if (!p) {
-	errno = ErrMem;
-	return (VM *)0;
+        errno = ErrMem;
+        return (VM *)0;
     }
-    zero($8 p, size);
+    // Initialize the memory to zero
+    memset(p, 0, sizeof(struct s_vm));
 
     return p;
 }
@@ -39,43 +46,47 @@ Program *exampleprogram(VM *vm) {
     Program *p;
     Instruction *i1, *i2, *i3;
     Args a1;
-    int16 s1, s2, sa1; //sizes
-    //sa1 = arugment size
+    int16 s1, s2, s3, sa1; //sizes
+    //sa1 = argument size
 
     a1 = 0;
     s1 = map(mov);
     s2 = map(nop);
+    s3 = map(hlt);
 
     i1 = (Instruction *)malloc($i s1);
     i2 = (Instruction *)malloc($i s2);
-    i3 = (Instruction *)malloc($i map(hlt));
+    i3 = (Instruction *)malloc($i s3);
 
     assert(i1 && i2 && i3);
     zero($8 i1, s1);
     zero($8 i2, s2);
-    zero($8 i3, map(hlt));
+    zero($8 i3, s3);
 
     i1->o = mov;
-    sa1 = (s1-1);
-    a1 = 0x0005;
+    sa1 = sizeof(Args); // Use the actual size of Args (2 bytes)
+    a1 = 0x0005; // Value to set in ax register
 
     p = vm->m;
+    // Copy the mov opcode (1 byte)
     copy($8 p, $8 i1, 1);
     p++;
 
-    if (a1) {
-        copy($8 p, $8 &a1, sa1);
-        p += sa1;
-    }
+    // Copy the argument value (2 bytes)
+    copy($8 p, $8 &a1, sa1);
+    p += sa1;
 
+    // Copy the nop opcode (1 byte)
     i2->o = nop;
     copy($8 p, $8 i2, 1);
     p++;
 
+    // Copy the hlt opcode (1 byte)
     i3->o = hlt;
     copy($8 p, $8 i3, 1);
 
-    vm->b = (s1+sa1+s2+map(hlt));
+    // Total memory used: 1 (mov) + 2 (args) + 1 (nop) + 1 (hlt) = 5 bytes
+    vm->b = 5;
     vm->c.r.ip = (Reg)vm->m;
     vm->c.r.sp = (Reg)-1;
 
@@ -83,14 +94,15 @@ Program *exampleprogram(VM *vm) {
     free(i2);
     free(i3);
 
-    return (Program *)vm->m;
+    return (Program *)vm->m; // Return the start of memory
 }
 
 int8 map(Opcode o) {
     int8 n;
     IM *p;
     
-    for (n=0, p=instrmap; n < IMs; n++, p++) {
+    for (n = 0; n < IMs; n++) {
+        p = &instrmap[n];
         if (p->o == o) {
             return p->size;
         }
@@ -98,37 +110,41 @@ int8 map(Opcode o) {
     return 0; // Return 0 for unknown opcodes
 }
 
-// Move value into register ax
 void __mov(VM *vm, Opcode opcode, Args a1, Args a2) {
+    // Store the argument value in the ax register
     vm->c.r.ax = (Reg)a1;
+    printf("Setting ax register to: 0x%.04x\n", (Reg)a1);
     return;
 }
 
-// Execute a single instruction based on its opcode
 void execinstr(VM *vm, Instruction *i) {
     Args a1, a2;
     int16 size;
+    int8 *ptr;
 
     a1 = a2 = 0;
     size = map(i->o);
-
-    // Extract arguments based on instruction size
+    
+    // Use a pointer to properly access arguments in memory
+    ptr = (int8 *)i;
+    ptr++; // Move past opcode
+    
     switch (size) {
         case 1:
             break;
         case 2:
-            a1 = i->a[0];
+            // For 2-byte instructions, extract 1 byte argument
+            a1 = (Args)(*ptr);
             break;
         case 3:
-            a1 = i->a[0];
-            a2 = i->a[1];
+            // For 3-byte instructions, extract 2 bytes of arguments
+            a1 = *((Args *)ptr);
             break;
         default:
             segfault(vm);
             return;
     }
 
-    // Execute appropriate instruction
     switch (i->o) {
         case mov:
             __mov(vm, i->o, a1, a2);
@@ -141,61 +157,90 @@ void execinstr(VM *vm, Instruction *i) {
         default:
             segfault(vm);
     }
+    
+    return;
 }
 
-// Move VM instruction pointer and execute instructions
 void execute(VM *vm) {
-    Program *pp;
+    int8 *pp;     // Use int8* instead of Program* for byte-level access
     int32 brkaddr;
-    Instruction *ip; // instruction pointer
+    Opcode current_opcode;
     int16 size;
 
-    size = 0;
-    assert(vm && vm->m[0]); // Check if VM and memory are initialized
+    assert(vm && vm->m[0]); // Make sure VM and memory are initialized
     printf("memory addr %p\n", vm->m);
     printf("break line %d\n", vm->b);
+    
     brkaddr = (int32)(vm->m) + vm->b;
     pp = vm->m;
 
-    do {
+    while ((int32)pp < brkaddr) {
         vm->c.r.ip = (Reg)(int32)pp;
-        ip = (Instruction *)pp;
         
-        // Check memory bounds before accessing
-        if ((int32)pp >= brkaddr) {
+        // Read opcode directly as a byte value
+        current_opcode = (Opcode)(*pp);
+        printf("Read opcode: 0x%02x at address %p\n", current_opcode, pp);
+        
+        if (current_opcode == mov) {
+            // For MOV instruction, read opcode (1 byte) + argument (2 bytes)
+            Args arg;
+            memcpy(&arg, pp + 1, sizeof(Args));  // Safely copy 2 bytes for the argument
+            __mov(vm, current_opcode, arg, 0);
+            size = 1 + sizeof(Args); // 1 byte opcode + 2 bytes argument
+        } else if (current_opcode == nop) {
+            // NOP is just 1 byte
+            size = 1;
+        } else if (current_opcode == hlt) {
+            // HLT instruction - terminate execution
+            printf("HLT instruction encountered\n");
+            error(vm, SysHlt);
+            return;
+        } else {
+            // Unknown opcode
+            printf("Unknown opcode: 0x%02x (decimal: %d) at address %p\n", 
+                   current_opcode, current_opcode, pp);
             segfault(vm);
+            return;
         }
         
-        size = map(ip->o);
-        if (size == 0) {
-            segfault(vm); // Invalid instruction
-        }
-        
-        execinstr(vm, ip);
         pp += size; // Move to next instruction
-        
-        printf("pp = %p\n", pp);
-        printf("brk = 0x%x\n", brkaddr);
-    } while (*pp != hlt && (int32)pp < brkaddr);
+    }
+    
+    // If we get here, we've executed all instructions without a HLT
+    printf("Reached end of program memory without HLT\n");
 }
 
 void error(VM* vm, Errorcode e) {
     int8 exitcode;
 
     exitcode = -1;
-    if (vm) {
-	free(vm);
-    }
     switch (e) {
-	case ErrSegv:
-	    fprintf(stderr, "%s\n", "VM Segmentation fault");
-	    break;
-	case SysHlt:
-	    fprintf(stderr, "%s\n", "System halted");
-	    exitcode = 0;
-	    break;
-	default:
-	    break;
+        case ErrSegv:
+            fprintf(stderr, "%s\n", "VM Segmentation fault");
+            if (vm) {
+                free(vm);
+            }
+            exit($i exitcode);
+            break;
+        case SysHlt:
+            fprintf(stderr, "%s\n", "System halted");
+            // Don't exit for HLT, just return to allow the program to continue
+            // and display the opcodes
+            return;
+            break;
+        case ErrMem:
+            fprintf(stderr, "%s\n", "Memory allocation error");
+            if (vm) {
+                free(vm);
+            }
+            exit($i exitcode);
+            break;
+        default:
+            fprintf(stderr, "%s\n", "Unknown error");
+            if (vm) {
+                free(vm);
+            }
+            exit($i exitcode);
+            break;
     }
-    exit($i exitcode);
 }
