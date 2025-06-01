@@ -114,12 +114,12 @@ void execinstr(VM *vm, Instruction *i) {
     size = map(i->o);
 
     switch (size) {
-	case 0:
-	    break;
 	case 1:
-	    a1 = i->a[0];
 	    break;
 	case 2:
+	    a1 = i->a[0];
+	    break;
+	case 3:
 	    a1 = i->a[0];
 	    a2 = i->a[1];
 	    break;
@@ -143,28 +143,30 @@ void execinstr(VM *vm, Instruction *i) {
 }
 
 void execute(VM *vm) {
-    Program *pp; 
+    Program *pp;
+    int32 brkaddr;
     Instruction ip; //instruction pointer
     int16 size;
 
     assert(vm && *vm->m);
+    brkaddr = ((int32)vm->m + vm->b);
     pp = (Program *)&vm->m;
 
-    //while ((*pp != (Opcode)hlt) && (pp <= (Program *)vm->b)) {
-    do {
-	//copy($8 &ip.o, $8 pp, 1);
+    while ((*pp != (Opcode)hlt) && ((int32)pp <= (int32)brkaddr)) {
+
+	printf("pp = %p\n", pp);
+	printf("brk = 0x%x\n", $i brkaddr);
+
 	ip.o = *pp;
 	size = map(ip.o);
 	execinstr(vm, &ip);
 	
 	vm->c.r.ip += size;
 	pp += size;
-    } while(*pp != (Opcode)hlt);
-    /*
-    if (pp > (Program *)vm->b) {
+    }
+    if ((int32)&pp > brkaddr) {
 	segfault(vm);
     }
-    */
 }
 
 void error(VM* vm, Errorcode e) {
