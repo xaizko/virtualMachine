@@ -1,4 +1,5 @@
-flags=-O2 -Wall -std=c2x
+flags=-O2 -std=c23
+#-Wall
 ldflags=-lbu
 
 .PHONY: all clean

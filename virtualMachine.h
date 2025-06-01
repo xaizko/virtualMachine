@@ -9,8 +9,10 @@
 #include <errno.h>
 #include <birchutils.h>
 
-#define ErrMem 0x01
-#define NoArgs {0x00, 0x00}
+#define NoErr 0x00
+#define SysHlt 0x01
+#define ErrMem 0x02
+#define ErrSegv 0x04
 
 typedef unsigned char int8;
 typedef unsigned short int int16;
@@ -23,6 +25,15 @@ typedef unsigned long long int int64;
 #define $4 (int64)
 #define $c (char *)
 #define $i (int)
+
+#define $ax ->c.r.ax
+#define $bx ->c.r.bx
+#define $cx ->c.r.cx
+#define $dx ->c.r.dx
+#define $sx ->c.r.sp
+#define $ix ->c.r.ip
+
+#define segfault(x) error((x), ErrSegv)
 
 typedef unsigned short int Reg;
 
@@ -38,7 +49,8 @@ typedef struct s_registers Registers;
 
 enum e_opcode {
     mov = 0x01,
-    nop = 0x02
+    nop = 0x02,
+    hlt = 0x03
 };
 typedef enum e_opcode Opcode;
 
@@ -53,7 +65,7 @@ struct s_instrmap {
 };
 typedef struct s_instrmap IM;
 
-typedef int8 Args;
+typedef int16 Args;
 
 struct s_instruction {
     Opcode o;
@@ -63,13 +75,14 @@ typedef struct s_instruction Instruction;
 
 typedef int8 Program;
 
-typedef int8 Memory[((unsigned int)(-1))];
+typedef int8 Memory[((int16)(-1))];
 
+typedef unsigned char Errorcode;
 
 struct s_vm {
     CPU c;
     Memory m;
-    Program p;
+    int16 b; //breakline
 };
 typedef struct s_vm VM;
 
@@ -78,7 +91,8 @@ typedef Memory *Stack;
 static Opcode opc;
 static IM instrmap[] = {
     { mov, 0x03 },
-    { nop, 0x01 }
+    { nop, 0x01 },
+    { hlt, 0x01 }
 };
 #define IMs (sizeof(instrmap) / sizeof(struct s_instrmap))
 
@@ -86,6 +100,10 @@ static IM instrmap[] = {
 int8 map(Opcode o);
 Program *exampleprogram(VM*);
 VM *virtualMachine(void);
+void __mov(VM*, Opcode, Args, Args);
+void execinstr(VM*, Instruction*);
+void execute(VM*);
+void error(VM*, Errorcode);
 
 int main(int,char**);
 
