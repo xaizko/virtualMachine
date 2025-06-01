@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     execute(vm);
     printf("ax = %.04hx\n", $i vm->c.r.ax);
 
-    printhex($8 prog, (map(mov) + map(nop)), ' ');
+    printhex($8 prog, (map(mov) + map(nop) + map(hlt)), ' ');
 
     return 0;
 
@@ -65,13 +65,13 @@ Program *exampleprogram(VM *vm) {
 
     if (a1) {
 	copy($8 p, $8 &a1, sa1);
-	p+= sa1;
+	p += sa1;
     }
 
     i2->o = nop;
     copy($8 p, $8 i2, 1);
-
     p++;
+
     i3->o = hlt;
     copy($8 p, $8 i3, 1);
 
@@ -144,23 +144,27 @@ void execinstr(VM *vm, Instruction *i) {
 
 void execute(VM *vm) {
     Program *pp; 
-    Instruction *ip; //instruction pointer
+    Instruction ip; //instruction pointer
     int16 size;
 
     assert(vm && *vm->m);
-    pp = vm->m;
+    pp = (Program *)&vm->m;
 
-    while ((*pp != (Opcode)hlt) && (pp <= (Program *)vm->b)) {
-	ip = (Instruction *)pp;
-	size = map(ip->o);
-	execinstr(vm, ip);
+    //while ((*pp != (Opcode)hlt) && (pp <= (Program *)vm->b)) {
+    do {
+	//copy($8 &ip.o, $8 pp, 1);
+	ip.o = *pp;
+	size = map(ip.o);
+	execinstr(vm, &ip);
 	
 	vm->c.r.ip += size;
 	pp += size;
-    }
+    } while(*pp != (Opcode)hlt);
+    /*
     if (pp > (Program *)vm->b) {
 	segfault(vm);
     }
+    */
 }
 
 void error(VM* vm, Errorcode e) {
