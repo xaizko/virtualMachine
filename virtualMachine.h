@@ -26,13 +26,6 @@ typedef unsigned long long int int64;
 #define $c (char *)
 #define $i (int)
 
-#define $ax ->c.r.ax
-#define $bx ->c.r.bx
-#define $cx ->c.r.cx
-#define $dx ->c.r.dx
-#define $sx ->c.r.sp
-#define $ix ->c.r.ip
-
 #define segfault(x) error((x), ErrSegv)
 
 typedef unsigned short int Reg;

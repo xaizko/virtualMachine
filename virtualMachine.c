@@ -17,9 +17,8 @@ int main(int argc, char *argv[]) {
 
     // Calculate the total size of all instructions
     total_size = map(mov) + map(nop) + map(hlt);
-    // Add the size of the argument (2 bytes) for the mov instruction
-    total_size += sizeof(Args) - 1; // -1 because 1 byte is already counted in map(mov)
-    
+    // Add the size of the argument for the mov instruction
+    total_size += sizeof(Args) - 1; 
     printf("Printing %d bytes of opcodes: ", total_size);
     printhex($8 prog, total_size, ' ');
 
@@ -30,7 +29,6 @@ int main(int argc, char *argv[]) {
 VM *virtualMachine() {
     VM *p; 
     
-    // Allocate directly rather than using size variable to avoid int16 overflow
     p = (VM *)malloc(sizeof(struct s_vm));
     if (!p) {
         errno = ErrMem;
@@ -64,24 +62,24 @@ Program *exampleprogram(VM *vm) {
     zero($8 i3, s3);
 
     i1->o = mov;
-    sa1 = sizeof(Args); // Use the actual size of Args (2 bytes)
+    sa1 = sizeof(Args); 
     a1 = 0x0005; // Value to set in ax register
 
     p = vm->m;
-    // Copy the mov opcode (1 byte)
+    // Copy the mov opcode 
     copy($8 p, $8 i1, 1);
     p++;
 
-    // Copy the argument value (2 bytes)
+    // Copy the argument value 
     copy($8 p, $8 &a1, sa1);
     p += sa1;
 
-    // Copy the nop opcode (1 byte)
+    // Copy the nop opcode (
     i2->o = nop;
     copy($8 p, $8 i2, 1);
     p++;
 
-    // Copy the hlt opcode (1 byte)
+    // Copy the hlt opcode 
     i3->o = hlt;
     copy($8 p, $8 i3, 1);
 
@@ -113,7 +111,6 @@ int8 map(Opcode o) {
 void __mov(VM *vm, Opcode opcode, Args a1, Args a2) {
     // Store the argument value in the ax register
     vm->c.r.ax = (Reg)a1;
-    printf("Setting ax register to: 0x%.04x\n", (Reg)a1);
     return;
 }
 
@@ -125,7 +122,6 @@ void execinstr(VM *vm, Instruction *i) {
     a1 = a2 = 0;
     size = map(i->o);
     
-    // Use a pointer to properly access arguments in memory
     ptr = (int8 *)i;
     ptr++; // Move past opcode
     
@@ -162,14 +158,12 @@ void execinstr(VM *vm, Instruction *i) {
 }
 
 void execute(VM *vm) {
-    int8 *pp;     // Use int8* instead of Program* for byte-level access
+    int8 *pp;     
     int32 brkaddr;
     Opcode current_opcode;
     int16 size;
 
-    assert(vm && vm->m[0]); // Make sure VM and memory are initialized
-    printf("memory addr %p\n", vm->m);
-    printf("break line %d\n", vm->b);
+    assert(vm && vm->m[0]); 
     
     brkaddr = (int32)(vm->m) + vm->b;
     pp = vm->m;
@@ -177,14 +171,12 @@ void execute(VM *vm) {
     while ((int32)pp < brkaddr) {
         vm->c.r.ip = (Reg)(int32)pp;
         
-        // Read opcode directly as a byte value
         current_opcode = (Opcode)(*pp);
-        printf("Read opcode: 0x%02x at address %p\n", current_opcode, pp);
         
         if (current_opcode == mov) {
-            // For MOV instruction, read opcode (1 byte) + argument (2 bytes)
+            // For MOV instruction, read opcode + argument 
             Args arg;
-            memcpy(&arg, pp + 1, sizeof(Args));  // Safely copy 2 bytes for the argument
+            memcpy(&arg, pp + 1, sizeof(Args));  //copy 2 bytes for the argument
             __mov(vm, current_opcode, arg, 0);
             size = 1 + sizeof(Args); // 1 byte opcode + 2 bytes argument
         } else if (current_opcode == nop) {
@@ -197,8 +189,7 @@ void execute(VM *vm) {
             return;
         } else {
             // Unknown opcode
-            printf("Unknown opcode: 0x%02x (decimal: %d) at address %p\n", 
-                   current_opcode, current_opcode, pp);
+            printf("Unknown opcode: 0x%02x (decimal: %d) at address %p\n", current_opcode, current_opcode, pp);
             segfault(vm);
             return;
         }
@@ -225,7 +216,6 @@ void error(VM* vm, Errorcode e) {
         case SysHlt:
             fprintf(stderr, "%s\n", "System halted");
             // Don't exit for HLT, just return to allow the program to continue
-            // and display the opcodes
             return;
             break;
         case ErrMem:
